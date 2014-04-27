@@ -1,0 +1,6 @@
+*~
+*.o
+test
+test_x11
+test_x11_old
+out.ppm
