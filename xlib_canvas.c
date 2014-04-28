@@ -11,6 +11,8 @@ typedef struct
 {
     canvas super;
 
+    unsigned long fgcolor;
+    unsigned long bgcolor;
     Drawable target;
     Display* dpy;
     GC gc;
@@ -53,6 +55,8 @@ static void pixmap_xlib_load( pixmap* super, int dstx, int dsty,
                         dstx+x, dsty+y );
         }
     }
+
+    XSetForeground( this->owner->dpy, this->owner->gc, this->owner->fgcolor );
 }
 
 static void pixmap_xlib_destroy( pixmap* super )
@@ -91,24 +95,40 @@ static pixmap* canvas_xlib_create_pixmap( canvas* super, unsigned int width,
     return (pixmap*)pix;
 }
 
-static void canvas_xlib_set_color( canvas* super,
-                                      unsigned char r, unsigned char g,
-                                      unsigned char b, unsigned char a )
+static void canvas_xlib_set_color( canvas* super, int fg,
+                                   unsigned char r, unsigned char g,
+                                   unsigned char b, unsigned char a )
 {
     canvas_xlib* this = (canvas_xlib*)super;
-    unsigned long color;
-    (void)a;
+    unsigned int br, bg, bb;
 
-    color = (r<<16) | (g<<8) | b;
-    XSetForeground( this->dpy, this->gc, color );
+    if( fg )
+    {
+        br = (this->bgcolor >> 16) & 0xFF;
+        bg = (this->bgcolor >>  8) & 0xFF;
+        bb = (this->bgcolor      ) & 0xFF;
+
+        r = (r*a + br*(0xFF-a))>>8;
+        g = (g*a + bg*(0xFF-a))>>8;
+        b = (b*a + bb*(0xFF-a))>>8;
+
+        this->fgcolor = (r<<16) | (g<<8) | b;
+        XSetForeground( this->dpy, this->gc, this->fgcolor );
+    }
+    else
+    {
+        this->bgcolor = (r<<16) | (g<<8) | b;
+    }
 }
 
 static void canvas_xlib_clear( canvas* super )
 {
     canvas_xlib* this = (canvas_xlib*)super;
 
+    XSetForeground( this->dpy, this->gc, this->bgcolor );
     XFillRectangle( this->dpy, this->target, this->gc,
                     0, 0, super->width, super->height );
+    XSetForeground( this->dpy, this->gc, this->fgcolor );
 }
 
 static void canvas_xlib_draw_point( canvas* super, unsigned int x,
@@ -215,6 +235,8 @@ canvas* canvas_xlib_create( Display* dpy, Drawable target,
 
     this->dpy = dpy;
     this->target = target;
+    this->fgcolor = 0;
+    this->bgcolor = 0;
     this->gc = XCreateGC( dpy, target, 0, NULL );
 
     if( !this->gc )

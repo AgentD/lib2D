@@ -19,7 +19,8 @@ typedef struct
     canvas super;
     unsigned char* data;
     unsigned int stride;
-    unsigned char pen[ 3 ];
+    unsigned char pen[ 4 ];
+    unsigned char bg[ 4 ];
 }
 canvas_memory;
 
@@ -108,14 +109,26 @@ static void canvas_mem_destroy( canvas* this )
     free( this );
 }
 
-static void canvas_mem_set_color( canvas* this,
+static void canvas_mem_set_color( canvas* super, int fg,
                                   unsigned char r, unsigned char g,
                                   unsigned char b, unsigned char a )
 {
-    ((canvas_memory*)this)->pen[ 0 ] = r;
-    ((canvas_memory*)this)->pen[ 1 ] = g;
-    ((canvas_memory*)this)->pen[ 2 ] = b;
-    ((canvas_memory*)this)->pen[ 3 ] = a;
+    canvas_memory* this = (canvas_memory*)super;
+
+    if( fg )
+    {
+        this->pen[ 0 ] = r;
+        this->pen[ 1 ] = g;
+        this->pen[ 2 ] = b;
+        this->pen[ 3 ] = a;
+    }
+    else
+    {
+        this->bg[ 0 ] = r;
+        this->bg[ 1 ] = g;
+        this->bg[ 2 ] = b;
+        this->bg[ 3 ] = a;
+    }
 }
 
 static void canvas_mem_clear( canvas* this )
@@ -127,10 +140,10 @@ static void canvas_mem_clear( canvas* this )
     {
         for( x=0; x<this->width; ++x, ptr+=4 )
         {
-            ptr[ 0 ] = ((canvas_memory*)this)->pen[ 0 ];
-            ptr[ 1 ] = ((canvas_memory*)this)->pen[ 1 ];
-            ptr[ 2 ] = ((canvas_memory*)this)->pen[ 2 ];
-            ptr[ 3 ] = ((canvas_memory*)this)->pen[ 3 ];
+            ptr[ 0 ] = ((canvas_memory*)this)->bg[ 0 ];
+            ptr[ 1 ] = ((canvas_memory*)this)->bg[ 1 ];
+            ptr[ 2 ] = ((canvas_memory*)this)->bg[ 2 ];
+            ptr[ 3 ] = ((canvas_memory*)this)->bg[ 3 ];
         }
     }
 }
@@ -430,6 +443,10 @@ canvas* canvas_memory_create( unsigned int width, unsigned int height )
     this->pen[ 1 ] = 0x00;
     this->pen[ 2 ] = 0x00;
     this->pen[ 3 ] = 0xFF;
+    this->bg[ 0 ] = 0x00;
+    this->bg[ 1 ] = 0x00;
+    this->bg[ 2 ] = 0x00;
+    this->bg[ 3 ] = 0xFF;
     super->width = width;
     super->height = height;
     super->linewidth = 1;

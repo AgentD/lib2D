@@ -15,6 +15,7 @@ typedef struct
     Display* dpy;
 
     XRenderColor c;
+    XRenderColor bg;
 
     Picture pen;
     Pixmap penmap;
@@ -129,25 +130,35 @@ static pixmap* canvas_xrender_create_pixmap( canvas* super,
     return (pixmap*)pix;
 }
 
-static void canvas_xrender_set_color( canvas* super,
+static void canvas_xrender_set_color( canvas* super, int fg,
                                       unsigned char r, unsigned char g,
                                       unsigned char b, unsigned char a )
 {
     canvas_xrender* this = (canvas_xrender*)super;
 
-    this->c.red   = r*a;
-    this->c.green = g*a;
-    this->c.blue  = b*a;
-    this->c.alpha = a<<8;
+    if( fg )
+    {
+        this->c.red   = r*a;
+        this->c.green = g*a;
+        this->c.blue  = b*a;
+        this->c.alpha = a<<8;
 
-    XRenderFillRectangle( this->dpy, PictOpSrc, this->pen, &this->c,
-                          0, 0, 1, 1 );
+        XRenderFillRectangle( this->dpy, PictOpSrc, this->pen, &this->c,
+                              0, 0, 1, 1 );
+    }
+    else
+    {
+        this->bg.red   = r*a;
+        this->bg.green = g*a;
+        this->bg.blue  = b*a;
+        this->bg.alpha = a<<8;
+    }
 }
 
 static void canvas_xrender_clear( canvas* super )
 {
     canvas_xrender* this = (canvas_xrender*)super;
-    XRenderFillRectangle( this->dpy, PictOpSrc, this->pic, &this->c,
+    XRenderFillRectangle( this->dpy, PictOpSrc, this->pic, &this->bg,
                           0, 0, super->width, super->height );
 }
 

@@ -12,8 +12,9 @@ struct canvas
     unsigned int width, height;
     unsigned int linewidth;
 
-    void (* set_color )( canvas* cv, unsigned char r, unsigned char g,
-                                     unsigned char b, unsigned char a );
+    void (* set_color )( canvas* cv, int fg,
+                         unsigned char r, unsigned char g,
+                         unsigned char b, unsigned char a );
 
 
     void (* clear )( canvas* cv );
@@ -96,16 +97,17 @@ unsigned int canvas_get_line_width( canvas* cv );
  * \brief Set the drawing color of a canvas
  *
  * \param cv A pointer to a canvas
+ * \param fg Non-zero to set the foreground color, zero for background
  * \param r The red component of the color
  * \param g The green component of the color
  * \param b The blue component of the color
  * \param a The alpha component of the color (transparency)
  */
-void canvas_set_color( canvas* cv, unsigned char r, unsigned char g,
+void canvas_set_color( canvas* cv, int fg, unsigned char r, unsigned char g,
                                    unsigned char b, unsigned char a );
 
 /**
- * \brief Clear all contents of a canvas to the currently set drawing color
+ * \brief Clear all contents of a canvas to the currently set background color
  *
  * \param cv A pointer to a canvas
  */

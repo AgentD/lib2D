@@ -42,11 +42,12 @@ unsigned int canvas_get_height( canvas* this )
     return this ? this->height : 0;
 }
 
-void canvas_set_color( canvas* this, unsigned char r, unsigned char g,
-                                     unsigned char b, unsigned char a )
+void canvas_set_color( canvas* this, int fg,
+                       unsigned char r, unsigned char g,
+                       unsigned char b, unsigned char a )
 {
     if( this )
-        this->set_color( this, r, g, b, a );
+        this->set_color( this, fg, r, g, b, a );
 }
 
 void canvas_clear( canvas* this )
