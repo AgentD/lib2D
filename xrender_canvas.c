@@ -1,4 +1,5 @@
 #include "xrender_canvas.h"
+#include "pixmap.h"
 #include "imath.h"
 
 #include <X11/extensions/Xrender.h>
@@ -19,9 +20,114 @@ typedef struct
     Pixmap penmap;
 
     Picture pic;
+    Drawable target;
 }
 canvas_xrender;
 
+typedef struct
+{
+    pixmap super;
+    canvas_xrender* owner;
+    Pixmap xpm;
+    Picture pic;
+}
+pixmap_xrender;
+
+
+
+static void pixmap_xrender_load( pixmap* super, int dstx, int dsty,
+                                 unsigned int width, unsigned int height,
+                                 unsigned int scan, int format,
+                                 unsigned char* data )
+{
+    pixmap_xrender* this = (pixmap_xrender*)super;
+    unsigned int x, y, bpp, R, G, B, A;
+    unsigned char* src_row;
+    XRenderColor c;
+
+    bpp = format==COLOR_RGBA8 ? 4 : (format==COLOR_RGB8 ? 3 : 1);
+
+    for( y=0; y<height; ++y, data+=scan*bpp )
+    {
+        for( src_row=data, x=0; x<width; ++x, src_row+=bpp )
+        {
+            R = src_row[0];
+            G = bpp>1 ? src_row[1] : R;
+            B = bpp>1 ? src_row[2] : R;
+            A = bpp>3 ? src_row[3] : 0xFF;
+
+            c.red   = R*A;
+            c.green = G*A;
+            c.blue  = B*A;
+            c.alpha = A<<8;
+
+            XRenderFillRectangle( this->owner->dpy, PictOpSrc, this->pic, &c,
+                                  dstx+x, dsty+y, 1, 1 );
+        }
+    }
+}
+
+static void pixmap_xrender_destroy( pixmap* super )
+{
+    pixmap_xrender* this = (pixmap_xrender*)super;
+    XRenderFreePicture( this->owner->dpy, this->pic );
+    XFreePixmap( this->owner->dpy, this->xpm );
+    free( this );
+}
+
+static pixmap* canvas_xrender_create_pixmap( canvas* super,
+                                             unsigned int width,
+                                             unsigned int height,
+                                             int format )
+{
+    canvas_xrender* this = (canvas_xrender*)super;
+    XRenderPictFormat* fmt;
+    pixmap_xrender* pix;
+    unsigned int bpp;
+
+    if( format==COLOR_RGBA8 )
+        fmt = XRenderFindStandardFormat( this->dpy, PictStandardARGB32 );
+    else if( format==COLOR_RGB8 )
+        fmt = XRenderFindStandardFormat( this->dpy, PictStandardRGB24 );
+    else
+        fmt = XRenderFindStandardFormat( this->dpy, PictStandardA8 );
+
+    if( !fmt )
+        return NULL;
+
+    pix = malloc( sizeof(pixmap_xrender) );
+
+    if( !pix )
+        return NULL;
+
+    pix->super.width   = width;
+    pix->super.height  = height;
+    pix->super.format  = format;
+    pix->super.load    = pixmap_xrender_load;
+    pix->super.destroy = pixmap_xrender_destroy;
+
+    bpp = format==COLOR_RGBA8 ? 32 : (format==COLOR_RGB8 ? 24 : 8);
+
+    pix->owner = this;
+    pix->xpm = XCreatePixmap(this->dpy, this->target, width, height, bpp);
+
+    if( !pix->xpm )
+    {
+        free( pix );
+        return NULL;
+    }
+
+    pix->pic = XRenderCreatePicture( this->dpy, pix->xpm, fmt, 0, NULL );
+
+    if( !pix->pic )
+    {
+        XFreePixmap( this->dpy, pix->xpm );
+        free( pix );
+        return NULL;
+    }
+
+    return (pixmap*)pix;
+}
 
 static void canvas_xrender_set_color( canvas* super,
                                       unsigned char r, unsigned char g,
@@ -196,6 +302,21 @@ static void canvas_xrender_fill_circle( canvas* super, int cx, int cy,
                             points, sizeof(points)/sizeof(points[0]) );
 }
 
+static void canvas_xrender_blit_pixmap( canvas* super, pixmap* pm, int x, int y )
+{
+    canvas_xrender* this = (canvas_xrender*)super;
+    pixmap_xrender* pix = (pixmap_xrender*)pm;
+    XRenderColor c;
+
+    c.red = c.green = c.blue = 0;
+    c.alpha = 0xFFFF;
+
+    XRenderFillRectangle( this->dpy, PictOpSrc, this->pic, &c, x, y,
+                          pm->width, pm->height );
+    XRenderComposite( this->dpy, PictOpOver, pix->pic, 0,
+                      this->pic, 0, 0, 0, 0, x, y, pm->width, pm->height );
+}
+
 static void canvas_xrender_destroy( canvas* super )
 {
     canvas_xrender* this = (canvas_xrender*)super;
@@ -258,6 +379,7 @@ canvas* canvas_xrender_create( Display* dpy, Drawable target,
         goto fail;
 
     this->dpy = dpy;
+    this->target = target;
     super->width = width;
     super->height = height;
     super->linewidth = 1;
@@ -270,6 +392,8 @@ canvas* canvas_xrender_create( Display* dpy, Drawable target,
     super->fill_rect     = canvas_xrender_fill_rect;
     super->fill_circle   = canvas_xrender_fill_circle;
     super->fill_triangle = canvas_xrender_fill_triangle;
+    super->blit_pixmap   = canvas_xrender_blit_pixmap;
+    super->create_pixmap = canvas_xrender_create_pixmap;
     super->destroy       = canvas_xrender_destroy;
 
     return super;

@@ -3,7 +3,9 @@
 
 
 
-typedef struct canvas canvas;
+#include "predef.h"
+
+
 
 struct canvas
 {
@@ -24,10 +26,29 @@ struct canvas
                                          int x1, int y1,
                                          int x2, int y2 );
 
+    void (* blit_pixmap )( canvas* cv, pixmap* pix, int x, int y );
+
     void (* destroy )( canvas* cv );
+
+    pixmap* (* create_pixmap )( canvas* cv, unsigned int width,
+                                unsigned int height, int format );
 };
 
 
+
+/**
+ * \brief Create a pixmap object for a given canvas
+ *
+ * \param cv     A pointer to a canvas
+ * \param width  The width of the pixmap in pixels
+ * \param height The height of the pixmap in pixels
+ * \param format The color format of the pixmap (eihter COLOR_RGBA8,
+ *               COLOR_RGB8 or COLOR_A8)
+ *
+ * \return A pointer to a pixmap object
+ */
+pixmap* canvas_create_pixmap( canvas* cv, unsigned int width,
+                              unsigned int height, int format );
 
 /**
  * \brief Destroy a canvas and free all its memory
@@ -167,6 +188,16 @@ void canvas_fill_circle( canvas* cv, int cx, int cy, int radius );
 void canvas_fill_triangle( canvas* cv, int x0, int y0,
                                        int x1, int y1,
                                        int x2, int y2 );
+
+/**
+ * \brief Blit a pixmap into a canvas
+ *
+ * \param cv  A pointer to a canvas
+ * \param pix A pointer to a pixmap
+ * \param x   The distance from the left
+ * \param y   The distance from the top
+ */
+void canvas_blit_pixmap( canvas* cv, pixmap* pix, int x, int y );
 
 
 

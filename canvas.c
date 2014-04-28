@@ -1,7 +1,19 @@
 #include "canvas.h"
+#include "pixmap.h"
 #include "imath.h"
 
+#include <stddef.h>
 
+
+
+pixmap* canvas_create_pixmap( canvas* this, unsigned int width,
+                              unsigned int height, int format )
+{
+    if( this && width && height && format>=0 && format<=3 )
+        return this->create_pixmap( this, width, height, format );
+
+    return NULL;
+}
 
 void canvas_destroy( canvas* this )
 {
@@ -141,5 +153,16 @@ void canvas_fill_triangle( canvas* this, int x0, int y0,
         return;
 
     this->fill_triangle( this, x0, y0, x1, y1, x2, y2 );
+}
+
+void canvas_blit_pixmap( canvas* this, pixmap* pix, int x, int y )
+{
+    if( !this || !pix || x>=(int)this->width || y>=(int)this->height )
+        return;
+
+    if( (x+(int)pix->width-1)<0 || (x+(int)pix->height-1)<0 )
+        return;
+
+    this->blit_pixmap( this, pix, x, y );
 }
 

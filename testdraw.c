@@ -1,10 +1,14 @@
 #include "testdraw.h"
+#include "pixmap.h"
 
 
 
 void testdraw( canvas* cv )
 {
+    unsigned char data[64*64*4];
+    unsigned char* ptr;
     unsigned int x, y;
+    pixmap* pic;
 
     canvas_set_line_width( cv, 1 );
 
@@ -56,5 +60,22 @@ void testdraw( canvas* cv )
     canvas_set_line_width( cv, 5 );
     canvas_set_color( cv, 0xFF, 0xFF, 0xFF, 0x80 );
     canvas_draw_circle( cv, 45, 150, 30 );
+
+    pic = canvas_create_pixmap( cv, 64, 64, COLOR_RGBA8 );
+
+    for( ptr=data, y=0; y<64; ++y )
+    {
+        for( x=0; x<64; ++x, ptr+=4 )
+        {
+            ptr[0] = x<<2;
+            ptr[1] = y<<2;
+            ptr[2] = 0x00;
+            ptr[3] = x<<2;
+        }
+    }
+
+    pixmap_load( pic, 0, 0, 0, 0, 64, 64, 64, COLOR_RGBA8, data );
+    canvas_blit_pixmap( cv, pic, 10, 330 );
+    pixmap_destroy( pic );
 }
 

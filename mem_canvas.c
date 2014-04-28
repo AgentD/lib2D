@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include "mem_canvas.h"
+#include "pixmap.h"
 #include "imath.h"
 
 
@@ -22,7 +23,84 @@ typedef struct
 }
 canvas_memory;
 
+typedef struct
+{
+    pixmap super;
+    unsigned int bpp;
+    unsigned char* data;
+}
+pixmap_memory;
 
+
+
+static void pixmap_mem_load( pixmap* super, int dstx, int dsty,
+                             unsigned int width, unsigned int height,
+                             unsigned int scan, int format,
+                             unsigned char* data )
+{
+    pixmap_memory* this = (pixmap_memory*)super;
+    unsigned int x, y, bpp, R, G, B, A;
+    unsigned char* dst_row;
+    unsigned char* src_row;
+    unsigned char* dst;
+
+    dst = this->data + (dsty*super->width + dstx)*this->bpp;
+    bpp = format==COLOR_RGBA8 ? 4 : (format==COLOR_RGB8 ? 3 : 1);
+
+    for( y=0; y<height; ++y, data+=scan*bpp, dst+=super->width*this->bpp )
+    {
+        dst_row = dst;
+        src_row = data;
+
+        for( x=0; x<width; ++x )
+        {
+            R = *(src_row++);
+            G = bpp>1 ? *(src_row++) : R;
+            B = bpp>1 ? *(src_row++) : R;
+            A = bpp>3 ? *(src_row++) : 0xFF;
+
+                              *(dst_row++) = (R*A) >> 8;
+            if( this->bpp>1 ) *(dst_row++) = (G*A) >> 8;
+            if( this->bpp>1 ) *(dst_row++) = (B*A) >> 8;
+            if( this->bpp>3 ) *(dst_row++) = A;
+        }
+    }
+}
+
+static void pixmap_mem_destroy( pixmap* this )
+{
+    free( ((pixmap_memory*)this)->data );
+    free( this );
+}
+
+static pixmap* canvas_mem_create_pixmap( canvas* this, unsigned int width,
+                                         unsigned int height, int format )
+{
+    pixmap_memory* pix;
+    (void)this;
+
+    pix = malloc( sizeof(pixmap_memory) );
+
+    if( pix )
+    {
+        pix->super.width   = width;
+        pix->super.height  = height;
+        pix->super.format  = format;
+        pix->super.load    = pixmap_mem_load;
+        pix->super.destroy = pixmap_mem_destroy;
+
+        pix->bpp = format==COLOR_RGBA8 ? 4 : (format==COLOR_RGB8 ? 3 : 1);
+        pix->data = malloc( width*height*pix->bpp );
+
+        if( !pix->data )
+        {
+            free( pix );
+            pix = NULL;
+        }
+    }
+
+    return (pixmap*)pix;
+}
 
 static void canvas_mem_destroy( canvas* this )
 {
@@ -303,6 +381,44 @@ static void canvas_mem_fill_circle( canvas* super, int cx, int cy,
     }
 }
 
+static void canvas_mem_blit_pixmap( canvas* super, pixmap* pm, int x, int y )
+{
+    canvas_memory* this = (canvas_memory*)super;
+    pixmap_memory* pix = (pixmap_memory*)pm;
+    unsigned int X, Y, R, G, B;
+    unsigned char* dst_row;
+    unsigned char* src;
+    unsigned char* dst;
+
+    dst = this->data + (y*super->width + x)*4;
+    src = pix->data;
+
+    for( Y=0; Y<pm->height; ++Y, dst+=super->width*4 )
+    {
+        if( (y+(int)Y)<0 )
+            continue;
+        if( (y+Y)>=super->height )  
+            break;
+
+        for( dst_row=dst, X=0; X<pm->width; ++X, src+=pix->bpp )
+        {
+            if( (x+(int)X)<0 )
+                continue;
+            if( (x+X)>=super->width )  
+                break;
+
+            R = src[0];
+            G = pix->bpp>1 ? src[1] : R;
+            B = pix->bpp>1 ? src[2] : R;
+
+            *(dst_row++) = R;
+            *(dst_row++) = G;
+            *(dst_row++) = B;
+            *(dst_row++) = 0xFF;
+        }
+    }
+}
+
 canvas* canvas_memory_create( unsigned int width, unsigned int height )
 {
     canvas_memory* this = malloc( sizeof(canvas_memory) );
@@ -326,6 +442,8 @@ canvas* canvas_memory_create( unsigned int width, unsigned int height )
     super->fill_rect = canvas_mem_fill_rect;
     super->fill_circle = canvas_mem_fill_circle;
     super->fill_triangle = canvas_mem_fill_triangle;
+    super->blit_pixmap = canvas_mem_blit_pixmap;
+    super->create_pixmap = canvas_mem_create_pixmap;
     super->destroy = canvas_mem_destroy;
 
     return super;

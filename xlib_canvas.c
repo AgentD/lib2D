@@ -1,4 +1,5 @@
 #include "xlib_canvas.h"
+#include "pixmap.h"
 #include "imath.h"
 
 #include <stdlib.h>
@@ -16,6 +17,79 @@ typedef struct
 }
 canvas_xlib;
 
+typedef struct
+{
+    pixmap super;
+    canvas_xlib* owner;
+    Pixmap xpm;
+}
+pixmap_xlib;
+
+
+
+static void pixmap_xlib_load( pixmap* super, int dstx, int dsty,
+                              unsigned int width, unsigned int height,
+                              unsigned int scan, int format,
+                              unsigned char* data )
+{
+    pixmap_xlib* this = (pixmap_xlib*)super;
+    unsigned int x, y, bpp, R, G, B, A;
+    unsigned char* src_row;
+    unsigned long color;
+
+    bpp = format==COLOR_RGBA8 ? 4 : (format==COLOR_RGB8 ? 3 : 1);
+
+    for( y=0; y<height; ++y, data+=scan*bpp )
+    {
+        for( src_row=data, x=0; x<width; ++x, src_row+=bpp )
+        {
+            A = bpp>3 ? src_row[3] : 0xFF;
+            R = ((src_row[0] * A) >> 8) & 0xFF;
+            G = (((bpp>1 ? src_row[1] : R)*A)>>8) & 0xFF;
+            B = (((bpp>1 ? src_row[2] : R)*A)>>8) & 0xFF;
+            color = (R<<16) | (G<<8) | B;
+            XSetForeground( this->owner->dpy, this->owner->gc, color );
+            XDrawPoint( this->owner->dpy, this->xpm, this->owner->gc,
+                        dstx+x, dsty+y );
+        }
+    }
+}
+
+static void pixmap_xlib_destroy( pixmap* super )
+{
+    pixmap_xlib* this = (pixmap_xlib*)super;
+    XFreePixmap( this->owner->dpy, this->xpm );
+    free( this );
+}
+
+static pixmap* canvas_xlib_create_pixmap( canvas* super, unsigned int width,
+                                          unsigned int height, int format )
+{
+    canvas_xlib* this = (canvas_xlib*)super;
+    pixmap_xlib* pix;
+
+    pix = malloc( sizeof(pixmap_xlib) );
+
+    if( pix )
+    {
+        pix->super.width   = width;
+        pix->super.height  = height;
+        pix->super.format  = format;
+        pix->super.load    = pixmap_xlib_load;
+        pix->super.destroy = pixmap_xlib_destroy;
+
+        pix->owner = this;
+        pix->xpm = XCreatePixmap(this->dpy, this->target, width, height, 24);
+
+        if( !pix->xpm )
+        {
+            free( pix );
+            pix = NULL;
+        }
+    }
+
+    return (pixmap*)pix;
+}
 
 static void canvas_xlib_set_color( canvas* super,
                                       unsigned char r, unsigned char g,
@@ -102,6 +176,15 @@ static void canvas_xlib_fill_circle( canvas* super, int cx, int cy,
               radius*2+2, radius*2+2, 0, 360*64 );
 }
 
+static void canvas_xlib_blit_pixmap( canvas* super, pixmap* pm, int x, int y )
+{
+    canvas_xlib* this = (canvas_xlib*)super;
+    pixmap_xlib* pix = (pixmap_xlib*)pm;
+
+    XCopyArea( this->dpy, pix->xpm, this->target, this->gc, 0, 0,
+               pm->width, pm->height, x, y );
+}
+
 static void canvas_xlib_destroy( canvas* super )
 {
     canvas_xlib* this = (canvas_xlib*)super;
@@ -152,6 +235,8 @@ canvas* canvas_xlib_create( Display* dpy, Drawable target,
     super->fill_rect     = canvas_xlib_fill_rect;
     super->fill_circle   = canvas_xlib_fill_circle;
     super->fill_triangle = canvas_xlib_fill_triangle;
+    super->blit_pixmap   = canvas_xlib_blit_pixmap;
+    super->create_pixmap = canvas_xlib_create_pixmap;
     super->destroy       = canvas_xlib_destroy;
 
     return super;
