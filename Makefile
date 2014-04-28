@@ -1,29 +1,29 @@
 CFLAGS:=-ansi -pedantic -Wall -Wextra -ggdb
 
 .PHONY: all
-all: test test_x11 test_x11_old
+all: test test_x11 lib2D.a
 
-test_x11: test_x11.o canvas.o imath.o xrender_canvas.o testdraw.o pixmap.o
+test_x11: test_x11.o testdraw.o lib2D.a
 	$(CC) $^ -lX11 -lXrender -o $@
 
-test_x11_old:test_x11_old.o canvas.o imath.o xlib_canvas.o testdraw.o pixmap.o
-	$(CC) $^ -lX11 -o $@
-
-test: test.o canvas.o imath.o mem_canvas.o testdraw.o pixmap.o
+test: test.o testdraw.o lib2D.a
 	$(CC) $^ -o $@
 
-test.o: test.c canvas.h mem_canvas.h testdraw.h
+lib2D.a: imath.o pixmap.o canvas.o mem_canvas.o xlib_canvas.o xrender_canvas.o
+	$(AR) rcs $@ $^
+
 imath.o: imath.c imath.h
 pixmap.o: pixmap.c pixmap.h predef.h
 canvas.o: canvas.c canvas.h imath.h predef.h pixmap.h
-testdraw.o: testdraw.c testdraw.h canvas.h pixmap.h
-test_x11.o: test_x11.c xrender_canvas.h canvas.h imath.h testdraw.h
 mem_canvas.o: mem_canvas.c mem_canvas.h canvas.h predef.h pixmap.h
 xlib_canvas.o: xlib_canvas.c xlib_canvas.h canvas.h predef.h pixmap.h
-test_x11_old.o: test_x11_old.c xlib_canvas.h canvas.h imath.h testdraw.h
 xrender_canvas.o: xrender_canvas.c xrender_canvas.h canvas.h predef.h pixmap.h
+
+test.o: test.c canvas.h mem_canvas.h testdraw.h
+testdraw.o: testdraw.c testdraw.h canvas.h pixmap.h
+test_x11.o: test_x11.c xrender_canvas.h canvas.h imath.h testdraw.h
 
 .PHONY: clean
 clean:
-	$(RM) test test_x11 test_x11_old *.o out.ppm
+	$(RM) test test_x11 *.o *.a out.ppm
 

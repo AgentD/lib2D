@@ -1,5 +1,6 @@
 *~
 *.o
+*.a
 test
 test_x11
 test_x11_old

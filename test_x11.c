@@ -2,15 +2,19 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
+#include <string.h>
+
 #include "xrender_canvas.h"
+#include "xlib_canvas.h"
 #include "testdraw.h"
 #include "canvas.h"
 
 
 
-int main( void )
+int main( int argc, char** argv )
 {
     unsigned int width = 640, height = 480;
+    int use_xrender_canvas = 1;
     Atom atom_wm_delete;
     XSizeHints hints;
     Display* dpy;
@@ -18,6 +22,15 @@ int main( void )
     canvas* cv;
     Window wnd;
     XEvent e;
+    int i;
+
+    for( i=1; i<argc; ++i )
+    {
+        if( !strcmp( argv[i], "--noxrender" ) )
+        {
+            use_xrender_canvas = 0;
+        }
+    }
 
     /********** open X11 display connection **********/
     dpy = XOpenDisplay( 0 );
@@ -54,7 +67,13 @@ int main( void )
     XMapWindow( dpy, wnd );
 
     /********** create canvas **********/
-    cv = canvas_xrender_create( dpy, wnd, width, height );
+    cv = NULL;
+
+    if( use_xrender_canvas )
+        cv = canvas_xrender_create( dpy, wnd, width, height );
+
+    if( !cv )
+        cv = canvas_xlib_create( dpy, wnd, width, height );
 
     if( !cv )
     {
