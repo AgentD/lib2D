@@ -46,24 +46,40 @@ static void pixmap_xrender_load( pixmap* super, int dstx, int dsty,
     unsigned char* src_row;
     XRenderColor c;
 
-    bpp = format==COLOR_RGBA8 ? 4 : (format==COLOR_RGB8 ? 3 : 1);
-
-    for( y=0; y<height; ++y, data+=scan*bpp )
+    if( format==COLOR_A8 && super->format==COLOR_A8 )
     {
-        for( src_row=data, x=0; x<width; ++x, src_row+=bpp )
+        for( y=0; y<height; ++y, data+=scan )
         {
-            R = src_row[0];
-            G = bpp>1 ? src_row[1] : R;
-            B = bpp>1 ? src_row[2] : R;
-            A = bpp>3 ? src_row[3] : 0xFF;
+            for( src_row=data, x=0; x<width; ++x )
+            {
+                c.red = c.green = c.blue = 0xFFFF;
+                c.alpha = (*(src_row++))<<8;
+                XRenderFillRectangle( this->owner->dpy, PictOpSrc, this->pic,
+                                      &c, dstx+x, dsty+y, 1, 1 );
+            }
+        }
+    }
+    else
+    {
+        bpp = format==COLOR_RGBA8 ? 4 : (format==COLOR_RGB8 ? 3 : 1);
 
-            c.red   = R*A;
-            c.green = G*A;
-            c.blue  = B*A;
-            c.alpha = A<<8;
+        for( y=0; y<height; ++y, data+=scan*bpp )
+        {
+            for( src_row=data, x=0; x<width; ++x, src_row+=bpp )
+            {
+                R = src_row[0];
+                G = bpp>1 ? src_row[1] : R;
+                B = bpp>1 ? src_row[2] : R;
+                A = bpp>3 ? src_row[3] : 0xFF;
 
-            XRenderFillRectangle( this->owner->dpy, PictOpSrc, this->pic, &c,
-                                  dstx+x, dsty+y, 1, 1 );
+                c.red   = R*A;
+                c.green = G*A;
+                c.blue  = B*A;
+                c.alpha = A<<8;
+
+                XRenderFillRectangle( this->owner->dpy, PictOpSrc, this->pic,
+                                      &c, dstx+x, dsty+y, 1, 1 );
+            }
         }
     }
 }
@@ -339,6 +355,18 @@ static void canvas_xrender_blend_pixmap( canvas* super, pixmap* pm,
                       this->pic, 0, 0, 0, 0, x, y, pm->width, pm->height );
 }
 
+static void canvas_xrender_stencil( canvas* super, pixmap* pm, int x, int y,
+                                    int srcx, int srcy,
+                                    unsigned int width, unsigned int height )
+{
+    canvas_xrender* this = (canvas_xrender*)super;
+    pixmap_xrender* pix = (pixmap_xrender*)pm;
+
+    XRenderComposite( this->dpy, PictOpOver, this->pen, pix->pic, this->pic,
+                      0, 0, srcx, srcy, x, y, width, height );
+
+}
+
 static void canvas_xrender_destroy( canvas* super )
 {
     canvas_xrender* this = (canvas_xrender*)super;
@@ -416,6 +444,7 @@ canvas* canvas_xrender_create( Display* dpy, Drawable target,
     super->fill_triangle = canvas_xrender_fill_triangle;
     super->blit_pixmap   = canvas_xrender_blit_pixmap;
     super->blend_pixmap  = canvas_xrender_blend_pixmap;
+    super->stencil       = canvas_xrender_stencil;
     super->create_pixmap = canvas_xrender_create_pixmap;
     super->destroy       = canvas_xrender_destroy;
 

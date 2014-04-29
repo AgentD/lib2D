@@ -30,6 +30,10 @@ struct canvas
     void (* blit_pixmap )( canvas* cv, pixmap* pix, int x, int y );
     void (* blend_pixmap )( canvas* cv, pixmap* pix, int x, int y );
 
+    void (* stencil )( canvas* cv, pixmap* pix, int x, int y,
+                       int srcx, int srcy,
+                       unsigned int width, unsigned int height );
+
     void (* destroy )( canvas* cv );
 
     pixmap* (* create_pixmap )( canvas* cv, unsigned int width,
@@ -211,6 +215,25 @@ void canvas_blit_pixmap( canvas* cv, pixmap* pix, int x, int y );
  * \param y   The distance from the top
  */
 void canvas_blend_pixmap( canvas* cv, pixmap* pix, int x, int y );
+
+/**
+ * \brief Blend the foreground color onto a canvas, using alpha cannel
+ *        from a pixmap
+ *
+ * This function can for instance be used to blend glyph images onto a canvas
+ *
+ * \param cv     A pointer to a canvas object
+ * \param pix    A pointer to a mask pixmap of COLOR_A8 type
+ * \param x      The distance from the left of the canvas to the destination
+ * \param y      The distance from the top of the canvas to the destination
+ * \param srcx   An offset into the pixmap to a sub image (from the left)
+ * \param srcy   An offset into the pixmap to a sub image (from the top)
+ * \param width  The widht of the sub image in pixels
+ * \param height The height of the sub image in pixels
+ */
+void canvas_stencil_blend( canvas* cv, pixmap* pix, int x, int y,
+                           int srcx, int srcy,
+                           unsigned int width, unsigned int height );
 
 
 

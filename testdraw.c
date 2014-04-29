@@ -39,7 +39,9 @@ void testdraw( canvas* cv )
     canvas_fill_rect( cv,  20,  20,  50,  50 );
 
     canvas_set_color( cv, 1, 0xFF, 0xFF, 0xFF, 0x80 );
+    canvas_set_color( cv, 0, 0xFF, 0, 0, 0 );
     canvas_fill_circle( cv, 35, 35, 15 );
+    canvas_set_color( cv, 0, 0, 0, 0, 0 );
 
     canvas_set_color( cv, 1, 0x00, 0xFF, 0x00, 0x80 );
     canvas_fill_triangle( cv, 10, 470, 50, 470, 30, 440 );
@@ -77,6 +79,25 @@ void testdraw( canvas* cv )
     pixmap_load( pic, 0, 0, 0, 0, 64, 64, 64, COLOR_RGBA8, data );
     canvas_blit_pixmap( cv, pic, 10, 330 );
     canvas_blend_pixmap( cv, pic, 128, 330 );
+    pixmap_destroy( pic );
+
+
+
+
+    pic = canvas_create_pixmap( cv, 16, 16, COLOR_A8 );
+
+    for( ptr=data, y=0; y<16; ++y )
+    {
+        for( x=0; x<16; ++x, ++ptr )
+        {
+            *ptr = (x % 4) ? 0x00 : 0xFF;
+            *ptr = (y % 4) ? *ptr : 0x80;
+        }
+    }
+
+    pixmap_load( pic, 0, 0, 0, 0, 16, 16, 16, COLOR_A8, data );
+    canvas_set_color( cv, 1, 0x00, 0x00, 0xFF, 0xFF );
+    canvas_stencil_blend( cv, pic, 58, 330, 0, 0, 16, 16 );
     pixmap_destroy( pic );
 }
 

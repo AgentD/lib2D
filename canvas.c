@@ -164,6 +164,9 @@ void canvas_blit_pixmap( canvas* this, pixmap* pix, int x, int y )
     if( (x+(int)pix->width-1)<0 || (x+(int)pix->height-1)<0 )
         return;
 
+    if( pix->format!=COLOR_RGB8 && pix->format!=COLOR_RGBA8 )
+        return;
+
     this->blit_pixmap( this, pix, x, y );
 }
 
@@ -175,9 +178,37 @@ void canvas_blend_pixmap( canvas* this, pixmap* pix, int x, int y )
     if( (x+(int)pix->width-1)<0 || (x+(int)pix->height-1)<0 )
         return;
 
+    if( pix->format!=COLOR_RGB8 && pix->format!=COLOR_RGBA8 )
+        return;
+
     if( !this->blend_pixmap || pix->format==COLOR_RGB8 )
         this->blit_pixmap( this, pix, x, y );
     else
         this->blend_pixmap( this, pix, x, y );
+}
+
+void canvas_stencil_blend( canvas* this, pixmap* pix, int x, int y,
+                           int srcx, int srcy,
+                           unsigned int width, unsigned int height )
+{
+    if( !this || !pix || x>=(int)this->width || y>=(int)this->height )
+        return;
+
+    if( !width || !height || srcx<0 || srcy<0 || pix->format!=COLOR_A8 )
+        return;
+
+    if( (x+(int)width-1)<0 || (x+(int)height-1)<0 )
+        return;
+
+    if( (srcx+width-1)>=pix->width || (srcy+height-1)>=pix->height )
+        return;
+
+    if( (srcx+width-1)>=pix->width )
+        width = pix->width - srcx;
+
+    if( (srcy+height-1)>=pix->height )
+        height = pix->height - srcy;
+
+    this->stencil( this, pix, x, y, srcx, srcy, width, height );
 }
 
