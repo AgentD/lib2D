@@ -28,6 +28,7 @@ struct canvas
                                          int x2, int y2 );
 
     void (* blit_pixmap )( canvas* cv, pixmap* pix, int x, int y );
+    void (* blend_pixmap )( canvas* cv, pixmap* pix, int x, int y );
 
     void (* destroy )( canvas* cv );
 
@@ -200,6 +201,16 @@ void canvas_fill_triangle( canvas* cv, int x0, int y0,
  * \param y   The distance from the top
  */
 void canvas_blit_pixmap( canvas* cv, pixmap* pix, int x, int y );
+
+/**
+ * \brief Blend a pixmap into a canvas
+ *
+ * \param cv  A pointer to a canvas
+ * \param pix A pointer to a pixmap
+ * \param x   The distance from the left
+ * \param y   The distance from the top
+ */
+void canvas_blend_pixmap( canvas* cv, pixmap* pix, int x, int y );
 
 
 

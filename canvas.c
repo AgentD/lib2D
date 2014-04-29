@@ -167,3 +167,17 @@ void canvas_blit_pixmap( canvas* this, pixmap* pix, int x, int y )
     this->blit_pixmap( this, pix, x, y );
 }
 
+void canvas_blend_pixmap( canvas* this, pixmap* pix, int x, int y )
+{
+    if( !this || !pix || x>=(int)this->width || y>=(int)this->height )
+        return;
+
+    if( (x+(int)pix->width-1)<0 || (x+(int)pix->height-1)<0 )
+        return;
+
+    if( !this->blend_pixmap || pix->format==COLOR_RGB8 )
+        this->blit_pixmap( this, pix, x, y );
+    else
+        this->blend_pixmap( this, pix, x, y );
+}
+

@@ -432,6 +432,46 @@ static void canvas_mem_blit_pixmap( canvas* super, pixmap* pm, int x, int y )
     }
 }
 
+static void canvas_memory_blend_pixmap( canvas* super, pixmap* pm,
+                                        int x, int y )
+{
+    canvas_memory* this = (canvas_memory*)super;
+    pixmap_memory* pix = (pixmap_memory*)pm;
+    unsigned int X, Y, R, G, B, A;
+    unsigned char* dst_row;
+    unsigned char* src;
+    unsigned char* dst;
+
+    dst = this->data + (y*super->width + x)*4;
+    src = pix->data;
+
+    for( Y=0; Y<pm->height; ++Y, dst+=super->width*4 )
+    {
+        if( (y+(int)Y)<0 )
+            continue;
+        if( (y+Y)>=super->height )
+            break;
+
+        for( dst_row=dst, X=0; X<pm->width; ++X, src+=pix->bpp, dst_row+=4 )
+        {
+            if( (x+(int)X)<0 )
+                continue;
+            if( (x+X)>=super->width )
+                break;
+
+            R = src[0];
+            G = pix->bpp>1 ? src[1] : R;
+            B = pix->bpp>1 ? src[2] : R;
+            A = pix->bpp>3 ? src[3] : A;
+
+            dst_row[0] = R + ((dst_row[0]*(0xFF-A))>>8);
+            dst_row[1] = G + ((dst_row[1]*(0xFF-A))>>8);
+            dst_row[2] = B + ((dst_row[2]*(0xFF-A))>>8);
+            dst_row[3] = ((A<<8) + (dst_row[3]*(0xFF-A)))>>8;
+        }
+    }
+}
+
 canvas* canvas_memory_create( unsigned int width, unsigned int height )
 {
     canvas_memory* this = malloc( sizeof(canvas_memory) );
@@ -460,6 +500,7 @@ canvas* canvas_memory_create( unsigned int width, unsigned int height )
     super->fill_circle = canvas_mem_fill_circle;
     super->fill_triangle = canvas_mem_fill_triangle;
     super->blit_pixmap = canvas_mem_blit_pixmap;
+    super->blend_pixmap = canvas_memory_blend_pixmap;
     super->create_pixmap = canvas_mem_create_pixmap;
     super->destroy = canvas_mem_destroy;
 

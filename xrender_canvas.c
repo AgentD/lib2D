@@ -313,7 +313,8 @@ static void canvas_xrender_fill_circle( canvas* super, int cx, int cy,
                             points, sizeof(points)/sizeof(points[0]) );
 }
 
-static void canvas_xrender_blit_pixmap( canvas* super, pixmap* pm, int x, int y )
+static void canvas_xrender_blit_pixmap( canvas* super, pixmap* pm,
+                                        int x, int y )
 {
     canvas_xrender* this = (canvas_xrender*)super;
     pixmap_xrender* pix = (pixmap_xrender*)pm;
@@ -324,6 +325,16 @@ static void canvas_xrender_blit_pixmap( canvas* super, pixmap* pm, int x, int y 
 
     XRenderFillRectangle( this->dpy, PictOpSrc, this->pic, &c, x, y,
                           pm->width, pm->height );
+    XRenderComposite( this->dpy, PictOpOver, pix->pic, 0,
+                      this->pic, 0, 0, 0, 0, x, y, pm->width, pm->height );
+}
+
+static void canvas_xrender_blend_pixmap( canvas* super, pixmap* pm,
+                                         int x, int y )
+{
+    canvas_xrender* this = (canvas_xrender*)super;
+    pixmap_xrender* pix = (pixmap_xrender*)pm;
+
     XRenderComposite( this->dpy, PictOpOver, pix->pic, 0,
                       this->pic, 0, 0, 0, 0, x, y, pm->width, pm->height );
 }
@@ -404,6 +415,7 @@ canvas* canvas_xrender_create( Display* dpy, Drawable target,
     super->fill_circle   = canvas_xrender_fill_circle;
     super->fill_triangle = canvas_xrender_fill_triangle;
     super->blit_pixmap   = canvas_xrender_blit_pixmap;
+    super->blend_pixmap  = canvas_xrender_blend_pixmap;
     super->create_pixmap = canvas_xrender_create_pixmap;
     super->destroy       = canvas_xrender_destroy;
 

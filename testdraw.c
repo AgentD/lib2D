@@ -76,6 +76,7 @@ void testdraw( canvas* cv )
 
     pixmap_load( pic, 0, 0, 0, 0, 64, 64, 64, COLOR_RGBA8, data );
     canvas_blit_pixmap( cv, pic, 10, 330 );
+    canvas_blend_pixmap( cv, pic, 128, 330 );
     pixmap_destroy( pic );
 }
 
