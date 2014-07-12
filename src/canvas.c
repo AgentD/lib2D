@@ -6,6 +6,14 @@
 
 
 
+/* out codes for sutherland clipping algorithm */
+#define LEFT 0x01
+#define RIGHT 0x02
+#define BOTTOM 0x04
+#define TOP 0x08
+
+
+
 pixmap* canvas_create_pixmap( canvas* this, unsigned int width,
                               unsigned int height, int format )
 {
@@ -66,16 +74,20 @@ void canvas_draw_point( canvas* this, unsigned int x, unsigned int y )
 
 void canvas_draw_line( canvas* this, int x0, int y0, int x1, int y1 )
 {
-    if( !this || (x0<0 && x1<0) )
-        return;
+    int code_a = 0, code_b = 0;
 
-    if( x0>=(int)this->width && x1>=(int)this->width )
-        return;
+    if( this )
+    {
+        /* generate out codes */
+        code_a |= x0<0 ? LEFT   : (x0>=(int)this->width  ? RIGHT : 0);
+        code_a |= y0<0 ? BOTTOM : (y0>=(int)this->height ? TOP   : 0);
 
-    if( (y0<0 && y1<0) || (y0>=(int)this->height && y1>=(int)this->height) )
-        return;
+        code_b |= x1<0 ? LEFT   : (x1>=(int)this->width  ? RIGHT : 0);
+        code_b |= y1<0 ? BOTTOM : (y1>=(int)this->height ? TOP   : 0);
 
-    this->draw_line( this, x0, y0, x1, y1 );
+        if( !(code_a & code_b) )
+            this->draw_line( this, x0, y0, x1, y1 );
+    }
 }
 
 void canvas_draw_circle( canvas* this, int cx, int cy, int radius )
