@@ -185,7 +185,7 @@ static void canvas_mem_fill_triangle( canvas* super, int x0, int y0,
                                                      int x2, int y2 )
 {
     canvas_memory* this = (canvas_memory*)super;
-    int f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11;
+    int f0, f1, f2, f3, f4, f5, f6, f7, f8;
     int a, b, c, x, y, bl, br, bt, bb;
     int A = this->pen[3], iA = 0xFF-A;
     unsigned char *scan, *ptr;
@@ -210,18 +210,19 @@ static void canvas_mem_fill_triangle( canvas* super, int x0, int y0,
         return;
 
     /* precompute factors for baricentric interpolation */
-    f0  = INT_TO_FP16( x1*y2 - x2*y1 );
-    f1  = INT_TO_FP16( x2*y0 - x0*y2 );
-    f2  = INT_TO_FP16( x0*y1 - x1*y0 );
-    f3  = INT_TO_FP16( y1-y2 );
-    f4  = INT_TO_FP16( y2-y0 );
-    f5  = INT_TO_FP16( y0-y1 );
-    f6  = INT_TO_FP16( x2-x1 );
-    f7  = INT_TO_FP16( x0-x2 );
-    f8  = INT_TO_FP16( x1-x0 );
-    f9  = FP16_DIV( FP16_ONE, f3*x0 + f6*y0 + f0 );
-    f10 = FP16_DIV( FP16_ONE, f4*x1 + f7*y1 + f1 );
-    f11 = FP16_DIV( FP16_ONE, f5*x2 + f8*y2 + f2 );
+    f0  = x1*y2 - x2*y1;
+    f1  = x2*y0 - x0*y2;
+    f2  = x0*y1 - x1*y0;
+    f3  = y1 - y2;
+    f4  = y2 - y0;
+    f5  = y0 - y1;
+    f6  = x2 - x1;
+    f7  = x0 - x2;
+    f8  = x1 - x0;
+
+    if( (f3*x0 + f6*y0 + f0)<0 ) { f3=-f3; f6=-f6; f0=-f0; }
+    if( (f4*x1 + f7*y1 + f1)<0 ) { f4=-f4; f7=-f7; f1=-f1; }
+    if( (f5*x2 + f8*y2 + f2)<0 ) { f5=-f5; f8=-f8; f2=-f2; }
 
     /* for each scanline in the triangle */
     scan = this->data + (bt*super->width + bl)*4;
@@ -231,13 +232,12 @@ static void canvas_mem_fill_triangle( canvas* super, int x0, int y0,
         /* for each pixel in the current scanline */
         for( ptr=scan, x=bl; x<=br; ++x, ptr+=4 )
         {
-            /* get baricentric coordinates of the current pixel */
-            a = FP16_MUL( f3*x + f6*y + f0, f9  );
-            b = FP16_MUL( f4*x + f7*y + f1, f10 );
-            c = FP16_MUL( f5*x + f8*y + f2, f11 );
+            /* check if denormalized baricentric coordinates are valid */
+            a = f3*x + f6*y + f0;
+            b = f4*x + f7*y + f1;
+            c = f5*x + f8*y + f2;
 
-            /* skip if outside triangle */
-            if( a<0 || b<0 || c<0 || a>FP16_ONE || b>FP16_ONE || c>FP16_ONE )
+            if( a<0 || b<0 || c<0 )
                 continue;
 
             BLEND( ptr, this->pen, A, iA );
@@ -257,8 +257,8 @@ static void canvas_mem_draw_line( canvas* super, int x0, int y0,
         dx = x1 - x0;
         dy = y1 - y0;
         a = isqrt16( dx*dx + dy*dy );
-        sx = FP16_DIV( INT_TO_FP16(dy), INT_TO_FP16(a) )>>1;
-        sy = FP16_DIV( INT_TO_FP16(dx), INT_TO_FP16(a) )>>1;
+        sx = (INT_TO_FP16(dy)>>1) / a;
+        sy = (INT_TO_FP16(dx)>>1) / a;
         sx *= super->linewidth;
         sy *= super->linewidth;
 

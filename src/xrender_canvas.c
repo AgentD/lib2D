@@ -213,8 +213,8 @@ static void canvas_xrender_draw_line( canvas* super, int x0, int y0,
     else
     {
         len = isqrt16( dx*dx + dy*dy );
-        ldx = FP16_DIV( INT_TO_FP16(dy), INT_TO_FP16(len) )>>1;
-        ldy = FP16_DIV( INT_TO_FP16(dx), INT_TO_FP16(len) )>>1;
+        ldx = (INT_TO_FP16(dy) / len)>>1;
+        ldy = (INT_TO_FP16(dx) / len)>>1;
         ldx *= super->linewidth;
         ldy *= super->linewidth;
 
@@ -246,12 +246,10 @@ static void canvas_xrender_draw_circle( canvas* super, int cx, int cy,
 
     cx = INT_TO_FP16(cx);
     cy = INT_TO_FP16(cy);
-    radius = INT_TO_FP16(radius);
-    inner = radius - INT_TO_FP16(super->linewidth);
-
-    ox = cx + radius;
+    inner = radius - super->linewidth;
+    ox = cx + INT_TO_FP16(radius);
     oy = cy;
-    ox2 = cx + inner;
+    ox2 = cx + INT_TO_FP16(inner);
     oy2 = cy;
 
     for( i=10; i<=360; i+=10, ox=x, oy=y, ox2=x2, oy2=y2 )
@@ -259,10 +257,10 @@ static void canvas_xrender_draw_circle( canvas* super, int cx, int cy,
         x = cosd16( i );
         y = sind16( i );
 
-        x2 = cx + FP16_MUL(x, inner);
-        y2 = cy + FP16_MUL(y, inner);
-        x = cx + FP16_MUL(x, radius);
-        y = cy + FP16_MUL(y, radius);
+        x2 = cx + x * inner;
+        y2 = cy + y * inner;
+        x  = cx + x * radius;
+        y  = cy + y * radius;
 
         points[0].x = ox2;
         points[0].y = oy2;
@@ -309,19 +307,15 @@ static void canvas_xrender_fill_circle( canvas* super, int cx, int cy,
 {
     canvas_xrender* this = (canvas_xrender*)super;
     XPointFixed points[ 38 ];
-    int i;
+    int i, j;
 
-    cx = INT_TO_FP16(cx);
-    cy = INT_TO_FP16(cy);
-    radius = INT_TO_FP16(radius);
+    points[0].x = INT_TO_FP16(cx);
+    points[0].y = INT_TO_FP16(cy);
 
-    points[0].x = cx;
-    points[0].y = cy;
-
-    for( i=0; i<=360; i+=10 )
+    for( i=0, j=1; i<=360; i+=10, ++j )
     {
-        points[ (i/10) + 1 ].x = cx + FP16_MUL(cosd16( i ), radius);
-        points[ (i/10) + 1 ].y = cy + FP16_MUL(sind16( i ), radius);
+        points[ j ].x = points[0].x + cosd16( i ) * radius;
+        points[ j ].y = points[0].y + sind16( i ) * radius;
     }
 
     XRenderCompositeTriFan( this->dpy, PictOpOver, this->pen, this->pic,
