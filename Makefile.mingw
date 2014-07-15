@@ -1,0 +1,28 @@
+CFLAGS:=-ansi -pedantic -Wall -Wextra -Iinclude
+CC:=i486-mingw32-gcc
+AR:=i486-mingw32-ar
+
+.PHONY: all
+all: test.exe 2D.lib
+
+%.o: src/%.c include/%.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+test.exe: test.o testdraw.o 2D.lib
+	$(CC) $^ -o $@
+
+2D.lib: imath.o pixmap.o canvas.o mem_canvas.o
+	$(AR) rcs $@ $^
+
+imath.o: src/imath.c include/imath.h
+pixmap.o: src/pixmap.c include/pixmap.h include/predef.h
+canvas.o: src/canvas.c include/canvas.h include/imath.h include/predef.h include/pixmap.h
+mem_canvas.o: src/mem_canvas.c include/mem_canvas.h include/canvas.h include/predef.h include/pixmap.h
+
+test.o: test.c include/canvas.h include/mem_canvas.h testdraw.h
+testdraw.o: testdraw.c testdraw.h include/canvas.h include/pixmap.h
+
+.PHONY: clean
+clean:
+	$(RM) test.exe *.o *.lib out.ppm
+
