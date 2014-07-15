@@ -14,7 +14,7 @@ int main( void )
     canvas* cv;
     FILE* f;
 
-    cv = canvas_memory_create( 640, 480 );
+    cv = canvas_memory_create( 640, 480, 0 );
 
     testdraw( cv );
 

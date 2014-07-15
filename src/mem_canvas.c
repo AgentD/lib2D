@@ -21,6 +21,8 @@ typedef struct
     unsigned int stride;
     unsigned char pen[ 4 ];
     unsigned char bg[ 4 ];
+    int my_buffer;
+    int swaprb;
 }
 canvas_memory;
 
@@ -34,10 +36,10 @@ pixmap_memory;
 
 
 
-static void pixmap_mem_load( pixmap* super, int dstx, int dsty,
-                             unsigned int width, unsigned int height,
-                             unsigned int scan, int format,
-                             unsigned char* data )
+static void pixmap_mem_load_rgba( pixmap* super, int dstx, int dsty,
+                                  unsigned int width, unsigned int height,
+                                  unsigned int scan, int format,
+                                  unsigned char* data )
 {
     pixmap_memory* this = (pixmap_memory*)super;
     unsigned int x, y, bpp, R, G, B, A;
@@ -68,6 +70,40 @@ static void pixmap_mem_load( pixmap* super, int dstx, int dsty,
     }
 }
 
+static void pixmap_mem_load_bgra( pixmap* super, int dstx, int dsty,
+                                  unsigned int width, unsigned int height,
+                                  unsigned int scan, int format,
+                                  unsigned char* data )
+{
+    pixmap_memory* this = (pixmap_memory*)super;
+    unsigned int x, y, bpp, R, G, B, A;
+    unsigned char* dst_row;
+    unsigned char* src_row;
+    unsigned char* dst;
+
+    dst = this->data + (dsty*super->width + dstx)*this->bpp;
+    bpp = format==COLOR_RGBA8 ? 4 : (format==COLOR_RGB8 ? 3 : 1);
+
+    for( y=0; y<height; ++y, data+=scan*bpp, dst+=super->width*this->bpp )
+    {
+        dst_row = dst;
+        src_row = data;
+
+        for( x=0; x<width; ++x )
+        {
+            R = *(src_row++);
+            G = bpp>1 ? *(src_row++) : R;
+            B = bpp>1 ? *(src_row++) : R;
+            A = bpp>3 ? *(src_row++) : 0xFF;
+
+                              *(dst_row++) = (B*A) >> 8;
+            if( this->bpp>1 ) *(dst_row++) = (G*A) >> 8;
+            if( this->bpp>1 ) *(dst_row++) = (R*A) >> 8;
+            if( this->bpp>3 ) *(dst_row++) = A;
+        }
+    }
+}
+
 static void pixmap_mem_destroy( pixmap* this )
 {
     free( ((pixmap_memory*)this)->data );
@@ -87,7 +123,9 @@ static pixmap* canvas_mem_create_pixmap( canvas* this, unsigned int width,
         pix->super.width   = width;
         pix->super.height  = height;
         pix->super.format  = format;
-        pix->super.load    = pixmap_mem_load;
+        pix->super.load    = ((canvas_memory*)this)->swaprb ?
+                             pixmap_mem_load_bgra :
+                             pixmap_mem_load_rgba;
         pix->super.destroy = pixmap_mem_destroy;
 
         pix->bpp = format==COLOR_RGBA8 ? 4 : (format==COLOR_RGB8 ? 3 : 1);
@@ -105,7 +143,9 @@ static pixmap* canvas_mem_create_pixmap( canvas* this, unsigned int width,
 
 static void canvas_mem_destroy( canvas* this )
 {
-    free( ((canvas_memory*)this)->data );
+    if( ((canvas_memory*)this)->my_buffer )
+        free( ((canvas_memory*)this)->data );
+
     free( this );
 }
 
@@ -117,16 +157,16 @@ static void canvas_mem_set_color( canvas* super, int fg,
 
     if( fg )
     {
-        this->pen[ 0 ] = r;
+        this->pen[ 0 ] = this->swaprb ? b : r;
         this->pen[ 1 ] = g;
-        this->pen[ 2 ] = b;
+        this->pen[ 2 ] = this->swaprb ? r : b;
         this->pen[ 3 ] = a;
     }
     else
     {
-        this->bg[ 0 ] = r;
+        this->bg[ 0 ] = this->swaprb ? b : r;
         this->bg[ 1 ] = g;
-        this->bg[ 2 ] = b;
+        this->bg[ 2 ] = this->swaprb ? r : b;
         this->bg[ 3 ] = a;
     }
 }
@@ -513,12 +553,29 @@ static void canvas_memory_stencil( canvas* super, pixmap* pm, int x, int y,
     }
 }
 
-canvas* canvas_memory_create( unsigned int width, unsigned int height )
+canvas* canvas_memory_create( unsigned int width, unsigned int height,
+                              int swaprb )
+{
+    unsigned char* buffer;
+    canvas* this;
+
+    buffer = malloc( width * height * 4 );
+    this = canvas_memory_create_ext( buffer, width, height, swaprb );
+    ((canvas_memory*)this)->my_buffer = 1;
+
+    return this;
+}
+
+canvas* canvas_memory_create_ext( unsigned char* buffer,
+                                  unsigned int width, unsigned int height,
+                                  int swaprb )
 {
     canvas_memory* this = malloc( sizeof(canvas_memory) );
     canvas* super = (canvas*)this;
 
-    this->data = malloc( width * height * 4 );
+    this->my_buffer = 0;
+    this->swaprb = swaprb;
+    this->data = buffer;
     this->stride = width * 4;
     this->pen[ 0 ] = 0x00;
     this->pen[ 1 ] = 0x00;
