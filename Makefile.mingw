@@ -3,10 +3,13 @@ CC:=i486-mingw32-gcc
 AR:=i486-mingw32-ar
 
 .PHONY: all
-all: test.exe 2D.lib
+all: test.exe test_w32.exe 2D.lib
 
 %.o: src/%.c include/%.h
 	$(CC) $(CFLAGS) -c $< -o $@
+
+test_w32.exe: test_w32.o testdraw.o 2D.lib
+	$(CC) $^ -lgdi32 -lmsimg32 -luser32 -o $@
 
 test.exe: test.o testdraw.o 2D.lib
 	$(CC) $^ -o $@
@@ -24,5 +27,5 @@ testdraw.o: testdraw.c testdraw.h include/canvas.h include/pixmap.h
 
 .PHONY: clean
 clean:
-	$(RM) test.exe *.o *.lib out.ppm
+	$(RM) test.exe test_w32.exe *.o *.lib out.ppm
 
